@@ -14,7 +14,7 @@
 
 .container2 {
   overflow-y: auto;
-  overflow-x: auto;
+  overflow-x: hidden;
   height: 100%;
 }
 

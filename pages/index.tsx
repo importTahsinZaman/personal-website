@@ -24,9 +24,19 @@ export default function Home() {
       case "banner":
         displayBanner();
         break;
+      case "about":
+        displayAboutMessage();
+        break;
       case "linkedin":
         window.open(
           "https://www.linkedin.com/in/tahsin-zaman-98761223a/",
+          "_blank",
+          "noopener,noreferrer"
+        );
+        break;
+      case "projects":
+        window.open(
+          "https://github.com/importTahsinZaman",
           "_blank",
           "noopener,noreferrer"
         );
@@ -38,9 +48,9 @@ export default function Home() {
           "noopener,noreferrer"
         );
         break;
-      case "instagram":
+      case "repo":
         window.open(
-          "https://www.instagram.com/tahsin__zaman/",
+          "https://github.com/importTahsinZaman/personal-website",
           "_blank",
           "noopener,noreferrer"
         );
@@ -57,7 +67,7 @@ export default function Home() {
   const displayHelpMessage = () => {
     let terminal_state = terminal.current.innerHTML;
     terminal_state += `<p>Available commands:</p>`;
-    terminal_state += `<p>about, banner, email, github, help, instagram, linkedin, projects, repo, whoami</p>`;
+    terminal_state += `<p>about, banner, email, github, help, linkedin, projects, repo, whoami</p>`;
     terminal.current.innerHTML = terminal_state;
   };
 
@@ -72,6 +82,18 @@ export default function Home() {
   const displayEmail = () => {
     let terminal_state = terminal.current.innerHTML;
     terminal_state += `<p>tahsinz21366@gmail.com</p>`;
+    terminal.current.innerHTML = terminal_state;
+  };
+
+  const displayAboutMessage = () => {
+    const terminalDiv = document.getElementById("terminal");
+    let elem = document.createElement("img");
+    elem.src = "./self.jpg";
+    elem.width = 400;
+    terminalDiv.appendChild(elem);
+
+    let terminal_state = terminal.current.innerHTML;
+    terminal_state += `<p>Tahsin is ...</p>`;
     terminal.current.innerHTML = terminal_state;
   };
 
@@ -98,6 +120,7 @@ export default function Home() {
     terminal_state += `</br>`;
     terminal_state += `<p>Welcome!</p>`;
     terminal_state += `<p>For a list of available commands, type 'help'.</p>`;
+    terminal_state += `<p>As this site is still a work in progress, most commands do not yet work</p>`;
     terminal.current.innerHTML = terminal_state;
   };
 
@@ -172,7 +195,7 @@ export default function Home() {
     displayBanner();
     let root = document.querySelector(":root");
     const rand = Math.floor(Math.random() * themes.length);
-    const theme = themes[rand];
+    const theme = themes[0];
     root.style.setProperty("--bg-color", theme.bgColor);
     root.style.setProperty("--primary-color", theme.primaryColor);
     root.style.setProperty("--primary-color", theme.secondaryColor);
@@ -189,7 +212,7 @@ export default function Home() {
       <main className={styles.main}>
         <div className={styles.container}>
           <div className={styles.container2}>
-            <div className={styles.terminal} ref={terminal}>
+            <div className={styles.terminal} ref={terminal} id={"terminal"}>
               {newLineText("banner")}
             </div>
             <div className={styles.newline}>
