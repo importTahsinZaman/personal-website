@@ -2,6 +2,10 @@
   width: 100vw;
   height: 100vh;
   padding: 0.5rem;
+  background-image: url("../public/bg.jpg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
 }
 
 .container {
@@ -10,6 +14,8 @@
   border: 2px solid var(--primary-color);
   border-radius: 0.25rem;
   padding: 16px;
+  background-color: rgba(0, 0, 0, 0.654);
+  backdrop-filter: blur(6px);
 }
 
 .container2 {
@@ -20,7 +26,6 @@
 
 .terminal {
   width: 100%;
-  background-color: var(--background-color);
   max-width: 100%;
 }
 

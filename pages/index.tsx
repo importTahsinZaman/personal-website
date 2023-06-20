@@ -193,13 +193,6 @@ export default function Home() {
 
   useEffect(() => {
     displayBanner();
-    let root = document.querySelector(":root");
-    const rand = Math.floor(Math.random() * themes.length);
-    const theme = themes[0];
-    root.style.setProperty("--bg-color", theme.bgColor);
-    root.style.setProperty("--primary-color", theme.primaryColor);
-    root.style.setProperty("--primary-color", theme.secondaryColor);
-    root.style.setProperty("--font-color", theme.fontColor);
   });
   return (
     <>
