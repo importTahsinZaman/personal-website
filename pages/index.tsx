@@ -6,6 +6,12 @@ import reactElementToJSXString from "react-element-to-jsx-string";
 
 import themes from "../public/themes.json";
 
+//TO Test:
+// npm run dev
+//TO DEPLOY:
+// npm run build
+// firebase deploy
+
 export default function Home() {
   const terminal = useRef(null);
 
@@ -75,8 +81,13 @@ export default function Home() {
     terminal.current.innerHTML = "";
   };
 
-  function delay(time: number) {
-    return new Promise((resolve) => setTimeout(resolve, time));
+  function sleep(num) {
+    let now = new Date();
+    const stop = now.getTime() + num;
+    while (true) {
+      now = new Date();
+      if (now.getTime() > stop) return;
+    }
   }
 
   const displayEmail = () => {
@@ -110,7 +121,6 @@ export default function Home() {
     }
     const addBanner2Line = (pointer: number) => {
       terminal_state += `<pre style="font-size:7.5px">${banner2[pointer]}</pre>`;
-      terminal.current.innerHTML = terminal_state;
     };
     pointer = 0;
     while (pointer < banner2.length) {
@@ -119,6 +129,7 @@ export default function Home() {
     }
     terminal_state += `</br>`;
     terminal_state += `<p>Welcome!</p>`;
+    terminal_state += `</br>`;
     terminal_state += `<p>For a list of available commands, type 'help'.</p>`;
     terminal_state += `<p>As this site is still a work in progress, most commands do not yet work</p>`;
     terminal.current.innerHTML = terminal_state;
