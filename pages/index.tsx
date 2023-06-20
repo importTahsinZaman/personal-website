@@ -109,7 +109,7 @@ export default function Home() {
       pointer += 1;
     }
     const addBanner2Line = (pointer: number) => {
-      terminal_state += `<pre style="font-size:8px">${banner2[pointer]}</pre>`;
+      terminal_state += `<pre style="font-size:7.5px">${banner2[pointer]}</pre>`;
       terminal.current.innerHTML = terminal_state;
     };
     pointer = 0;
@@ -182,6 +182,7 @@ export default function Home() {
     `                 !!8888888888888888899fT|!^"'`,
     `                   !988888888899fT|!^"'`,
   ];
+
   const banner2 = [
     `████████╗█████╗  ██╗  ██╗███████╗██╗███╗   ██╗    ███████╗ █████╗ ███╗   ███╗ █████╗ ███╗   ██╗`,
     `╚══██╔══╝██╔══██╗██║  ██║██╔════╝██║████╗  ██║    ╚══███╔╝██╔══██╗████╗ ████║██╔══██╗████╗  ██║`,
