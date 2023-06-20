@@ -1,10 +1,10 @@
 @import url("https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap");
 
 :root {
-  --bg-color: #142326;
-  --font-color: #c1ccc4;
-  --primary-color: #60bbd4;
-  --secondary-color: #01abb5;
+  --bg-color: #261422;
+  --font-color: #c6d4db;
+  --primary-color: #529ac0;
+  --secondary-color: #ec5c74;
 }
 
 * {
