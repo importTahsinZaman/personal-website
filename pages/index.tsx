@@ -87,45 +87,86 @@ const streamTextToElement = (
   typeNextChar();
 };
 
-// ASCII Art streaming utility function for banner
+// ASCII Art streaming utility function for banner - with chunk processing for speed
 const streamAsciiArt = (
   element: HTMLElement,
   asciiArt: string,
-  speed: number = 2, // faster speed for ASCII art
+  chunkSize: number = 20, // Process this many characters at once
   onComplete?: () => void,
   terminalRef?: React.RefObject<HTMLDivElement>
 ) => {
-  // Split ASCII art into lines
-  const lines = asciiArt.trim().split("\n");
+  // Split ASCII art into rows and create all characters
+  const rows = asciiArt.trim().split("\n");
+  const totalRows = rows.length;
 
-  // Create pre element
+  // Create pre element to contain the ASCII art
   const pre = document.createElement("pre");
   pre.className = styles.asciiArt;
   element.appendChild(pre);
 
-  // Stream each line
-  let lineIndex = 0;
+  // Create an empty display grid
+  const displayGrid: string[][] = [];
+  for (let i = 0; i < totalRows; i++) {
+    displayGrid.push(new Array(rows[i].length).fill(" "));
+  }
 
-  const streamNextLine = () => {
-    if (lineIndex >= lines.length) {
+  // Flatten all characters into a single array for left-to-right streaming
+  const allChars: { char: string; row: number; col: number }[] = [];
+
+  rows.forEach((row, rowIndex) => {
+    for (let colIndex = 0; colIndex < row.length; colIndex++) {
+      const char = row.charAt(colIndex);
+      if (char !== " ") {
+        // Only include non-space characters for efficiency
+        allChars.push({ char, row: rowIndex, col: colIndex });
+      }
+    }
+  });
+
+  // Stream characters in chunks using requestAnimationFrame for better performance
+  let charIndex = 0;
+
+  const streamNextChunk = () => {
+    if (charIndex >= allChars.length) {
       if (onComplete) onComplete();
       return;
     }
 
-    // Add the next line with a new line break
-    pre.innerHTML += lines[lineIndex] + "\n";
-    lineIndex++;
+    // Process a chunk of characters at once for speed
+    const endIndex = Math.min(charIndex + chunkSize, allChars.length);
+
+    // Update multiple characters in a single frame
+    for (let i = charIndex; i < endIndex; i++) {
+      const { char, row, col } = allChars[i];
+      displayGrid[row][col] = char;
+    }
+
+    // Update the display with all changes at once
+    let displayText = "";
+    displayGrid.forEach((displayRow) => {
+      displayText += displayRow.join("") + "\n";
+    });
+
+    pre.innerHTML = displayText;
 
     // Scroll to ensure visibility
     if (terminalRef?.current) {
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
     }
 
-    // Continue with next line after delay
-    setTimeout(streamNextLine, speed * 40); // Delay between lines
+    // Update the index for next chunk
+    charIndex = endIndex;
+
+    // Use requestAnimationFrame for better performance
+    if (charIndex < allChars.length) {
+      requestAnimationFrame(streamNextChunk);
+    } else if (onComplete) {
+      onComplete();
+    }
   };
 
-  streamNextLine();
+  // Start the animation
+  requestAnimationFrame(streamNextChunk);
 };
 
 // Component to maintain focus on the input field
@@ -355,7 +396,7 @@ export default function Home() {
       setIsStreaming(true);
       const div = document.createElement("div");
       div.className = styles.commandResult;
-      div.style.margin = "4px 0";
+      div.style.margin = "12px 0 4px 0";
       terminal.current.appendChild(div);
 
       streamTextToElement(div, content, 5, () => {
@@ -382,7 +423,7 @@ export default function Home() {
       </table>`;
 
       const div = document.createElement("div");
-      div.style.margin = "4px 0";
+      div.style.margin = "12px 0 4px 0";
       div.style.padding = "0";
       terminal.current.appendChild(div);
 
@@ -407,7 +448,7 @@ export default function Home() {
       const emailContent = `<p>📧 Email: <a href="mailto:tahsinz21366@gmail.com">tahsinz21366@gmail.com</a></p>`;
 
       const div = document.createElement("div");
-      div.style.margin = "4px 0";
+      div.style.margin = "12px 0 4px 0";
       terminal.current.appendChild(div);
 
       streamTextToElement(div, emailContent, 5, () => {
@@ -425,7 +466,7 @@ export default function Home() {
       <p style="margin-top: 4px">i'm currently building the ai workspace for devops over at <a href="https://a37.ai/" target="_blank" rel="noopener noreferrer">a37.ai</a></p>`;
 
       const div = document.createElement("div");
-      div.style.margin = "0";
+      div.style.margin = "12px 0 0 0";
       terminal.current.appendChild(div);
 
       streamTextToElement(div, aboutContent, 5, () => {
@@ -465,7 +506,7 @@ export default function Home() {
       <p style="margin: 3px 0 0 0;">Click to preview: ${themeButtons}</p>`;
 
       const div = document.createElement("div");
-      div.style.margin = "0";
+      div.style.margin = "12px 0 0 0";
       div.style.lineHeight = "1.2";
       terminal.current.appendChild(div);
 
@@ -534,18 +575,18 @@ export default function Home() {
 ███████╗██║  ██║██║ ╚═╝ ██║██║  ██║██║ ╚████║
 ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝`;
 
-      // Stream the ASCII art
+      // Use the new chunked streaming approach - process 20 characters per frame
       streamAsciiArt(
         asciiArtContainer,
         asciiArt,
-        2,
+        6, // Process 6 characters per animation frame (70% slower than before)
         () => {
           // Stream the text below the ASCII art once ASCII art streaming is complete
           const textContainer = document.createElement("div");
           textContainer.style.margin = "8px 0 0 0";
           bannerContainer.appendChild(textContainer);
 
-          const bannerText = `<p style="margin: 0 0 4px 0; color: var(--accent-color);">co-Founder and cto at <a href="https://a37.ai/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-color);">a37.ai</a>; mit dropout</p>
+          const bannerText = `<p style="margin: 0 0 4px 0; color: var(--accent-color);">co-founder and cto at <a href="https://a37.ai/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-color);">a37.ai</a>; mit dropout</p>
         <p style="margin: 0;">Type <span style="color: var(--primary-color)">help</span> to see available commands</p>`;
 
           streamTextToElement(textContainer, bannerText, 8, () => {
@@ -563,7 +604,7 @@ export default function Home() {
       setIsStreaming(true);
 
       const errorContainer = document.createElement("p");
-      errorContainer.style.margin = "4px 0";
+      errorContainer.style.margin = "12px 0 4px 0";
       errorContainer.style.padding = "0";
       terminal.current.appendChild(errorContainer);
 
@@ -577,7 +618,7 @@ export default function Home() {
   };
 
   const renderCommandLine = (text: string) => {
-    return `<div class="${styles.newline}"><div class="${styles.prompt}"><span class="${styles.promptUsername}">guest</span><span class="${styles.promptSeparator}">@</span><span class="${styles.promptPath}">tahsinzaman:~$</span></div><span style="margin-left: 3px;">${text}</span></div>`;
+    return `<div class="${styles.newline}" style="margin-bottom: 15px;"><div class="${styles.prompt}"><span class="${styles.promptUsername}">guest</span><span class="${styles.promptSeparator}">@</span><span class="${styles.promptPath}">tahsinzaman:~$</span></div><span style="margin-left: 3px;">${text}</span></div>`;
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
