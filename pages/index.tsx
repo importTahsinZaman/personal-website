@@ -102,8 +102,8 @@ export default function Home() {
       inputRef.current.focus();
     }
 
-    // First display the banner
-    displayBanner();
+    // First display the banner (on initial load)
+    displayBanner(true);
 
     // Then force scroll to bottom to ensure the input is visible
     setTimeout(() => {
@@ -188,7 +188,7 @@ export default function Home() {
         clearTerminal();
         break;
       case "banner":
-        displayBanner();
+        displayBanner(false);
         break;
       case "about":
         displayAboutMessage();
@@ -331,9 +331,8 @@ export default function Home() {
     }
   };
 
-  const displayBanner = () => {
-    if (terminal.current) {
-      terminal.current.innerHTML = `
+  const displayBanner = (isInitialLoad = false) => {
+    const bannerContent = `
 <div style="max-width: 100%; overflow-x: auto;">
 <pre class="${styles.asciiArt}">
 ████████╗ █████╗ ██╗  ██╗███████╗██╗███╗   ██╗
@@ -352,7 +351,16 @@ export default function Home() {
 </div>
 <p style="margin: 2px 0; color: var(--accent-color);">co-Founder and cto at <a href="https://a37.ai/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-color);">a37.ai</a>; mit dropout</p>
 <p>Type <span style="color: var(--primary-color)">help</span> to see available commands</p>
-      `;
+    `;
+
+    if (terminal.current) {
+      if (isInitialLoad) {
+        // On initial load, replace the content
+        terminal.current.innerHTML = bannerContent;
+      } else {
+        // When banner command is executed, append to existing content
+        addOutput(bannerContent);
+      }
 
       // Force scroll to bottom after displaying banner
       forceScrollToBottom();
