@@ -24,11 +24,158 @@ interface Theme {
   colors: ThemeColors;
 }
 
+// Simplified text streaming utility function
+const streamTextToElement = (
+  element: HTMLElement,
+  content: string,
+  speed: number = 10,
+  onComplete?: () => void
+) => {
+  const tempDiv = document.createElement("div");
+
+  // Create a temporary container
+  const container = document.createElement("div");
+  container.innerHTML = content;
+
+  // Append the container to the terminal
+  element.appendChild(container);
+
+  // Get all text nodes
+  const textNodes: Text[] = [];
+  const getTextNodes = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
+      textNodes.push(node as Text);
+    } else {
+      node.childNodes.forEach((child) => getTextNodes(child));
+    }
+  };
+
+  getTextNodes(container);
+
+  // Store original content and clear text
+  const originalContents = textNodes.map((node) => node.textContent || "");
+  textNodes.forEach((node) => {
+    node.textContent = "";
+  });
+
+  // Stream text into each node sequentially
+  let currentNodeIndex = 0;
+  let currentCharIndex = 0;
+
+  const typeNextChar = () => {
+    if (currentNodeIndex >= textNodes.length) {
+      if (onComplete) onComplete();
+      return;
+    }
+
+    const currentNode = textNodes[currentNodeIndex];
+    const originalText = originalContents[currentNodeIndex];
+
+    if (currentCharIndex < originalText.length) {
+      // Add next character
+      currentNode.textContent = originalText.substring(0, currentCharIndex + 1);
+      currentCharIndex++;
+      setTimeout(typeNextChar, speed);
+    } else {
+      // Move to next node
+      currentNodeIndex++;
+      currentCharIndex = 0;
+      setTimeout(typeNextChar, speed * 2);
+    }
+  };
+
+  typeNextChar();
+};
+
+// ASCII Art streaming utility function for banner - with chunk processing for speed
+const streamAsciiArt = (
+  element: HTMLElement,
+  asciiArt: string,
+  chunkSize: number = 20, // Process this many characters at once
+  onComplete?: () => void,
+  terminalRef?: React.RefObject<HTMLDivElement>
+) => {
+  // Split ASCII art into rows and create all characters
+  const rows = asciiArt.trim().split("\n");
+  const totalRows = rows.length;
+
+  // Create pre element to contain the ASCII art
+  const pre = document.createElement("pre");
+  pre.className = styles.asciiArt;
+  element.appendChild(pre);
+
+  // Create an empty display grid
+  const displayGrid: string[][] = [];
+  for (let i = 0; i < totalRows; i++) {
+    displayGrid.push(new Array(rows[i].length).fill(" "));
+  }
+
+  // Flatten all characters into a single array for left-to-right streaming
+  const allChars: { char: string; row: number; col: number }[] = [];
+
+  rows.forEach((row, rowIndex) => {
+    for (let colIndex = 0; colIndex < row.length; colIndex++) {
+      const char = row.charAt(colIndex);
+      if (char !== " ") {
+        // Only include non-space characters for efficiency
+        allChars.push({ char, row: rowIndex, col: colIndex });
+      }
+    }
+  });
+
+  // Stream characters in chunks using requestAnimationFrame for better performance
+  let charIndex = 0;
+
+  const streamNextChunk = () => {
+    if (charIndex >= allChars.length) {
+      if (onComplete) onComplete();
+      return;
+    }
+
+    // Process a chunk of characters at once for speed
+    const endIndex = Math.min(charIndex + chunkSize, allChars.length);
+
+    // Update multiple characters in a single frame
+    for (let i = charIndex; i < endIndex; i++) {
+      const { char, row, col } = allChars[i];
+      displayGrid[row][col] = char;
+    }
+
+    // Update the display with all changes at once
+    let displayText = "";
+    displayGrid.forEach((displayRow) => {
+      displayText += displayRow.join("") + "\n";
+    });
+
+    pre.innerHTML = displayText;
+
+    // Scroll to ensure visibility
+    if (terminalRef?.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    }
+
+    // Update the index for next chunk
+    charIndex = endIndex;
+
+    // Use requestAnimationFrame for better performance
+    if (charIndex < allChars.length) {
+      requestAnimationFrame(streamNextChunk);
+    } else if (onComplete) {
+      onComplete();
+    }
+  };
+
+  // Start the animation
+  requestAnimationFrame(streamNextChunk);
+};
+
 // Component to maintain focus on the input field
 const AutoFocus = ({
   inputRef,
+  isMobile,
 }: {
   inputRef: React.RefObject<HTMLInputElement>;
+  isMobile: boolean;
 }) => {
   useEffect(() => {
     // Focus the input when the component mounts
@@ -36,16 +183,23 @@ const AutoFocus = ({
       inputRef.current.focus();
     }
 
-    // Set up an interval to check focus and restore it if lost
-    const interval = setInterval(() => {
-      if (document.activeElement !== inputRef.current && inputRef.current) {
-        inputRef.current.focus();
-      }
-    }, 500);
+    // For non-mobile: Set up an interval to check focus and restore it if lost
+    let interval: NodeJS.Timeout | null = null;
 
-    // Add click listener to refocus
+    if (!isMobile) {
+      interval = setInterval(() => {
+        if (document.activeElement !== inputRef.current && inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 500);
+    }
+
+    // Add click listener to refocus (but be less aggressive on mobile)
     const handleClick = () => {
-      if (inputRef.current) {
+      if (
+        inputRef.current &&
+        (!isMobile || (isMobile && Math.random() > 0.5))
+      ) {
         inputRef.current.focus();
       }
     };
@@ -54,10 +208,10 @@ const AutoFocus = ({
 
     // Clean up
     return () => {
-      clearInterval(interval);
+      if (interval) clearInterval(interval);
       document.removeEventListener("click", handleClick);
     };
-  }, [inputRef]);
+  }, [inputRef, isMobile]);
 
   return null;
 };
@@ -71,17 +225,31 @@ export default function Home() {
   const [currentTheme, setCurrentTheme] = useState<string>("NeonNight");
   const [isMounted, setIsMounted] = useState<boolean>(false);
   const [caretPosition, setCaretPosition] = useState<number>(0);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [isPortrait, setIsPortrait] = useState<boolean>(true);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState<boolean>(false);
+  const [isStreaming, setIsStreaming] = useState<boolean>(false);
 
   useEffect(() => {
     setIsMounted(true);
+
+    // Detect if device is mobile and orientation
+    const checkMobileAndOrientation = () => {
+      setIsMobile(
+        window.innerWidth <= 768 || /Mobi|Android/i.test(navigator.userAgent)
+      );
+      setIsPortrait(window.innerHeight > window.innerWidth);
+    };
+
+    checkMobileAndOrientation();
 
     // Focus input on load
     if (inputRef.current) {
       inputRef.current.focus();
     }
 
-    // First display the banner
-    displayBanner();
+    // First display the banner (on initial load)
+    displayBanner(true);
 
     // Then force scroll to bottom to ensure the input is visible
     setTimeout(() => {
@@ -90,7 +258,44 @@ export default function Home() {
 
     // Apply theme from themes.json
     applyTheme(currentTheme);
-  }, []);
+
+    // Add resize and orientation change listeners
+    const handleResize = () => {
+      checkMobileAndOrientation();
+    };
+
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleResize);
+
+    // Detect keyboard opening on mobile (approximate)
+    const handleVisualViewportResize = () => {
+      if (isMobile && window.visualViewport) {
+        // If the viewport height is significantly less than the window height,
+        // we can assume the keyboard is open
+        const keyboardThreshold = window.innerHeight * 0.75;
+        setIsKeyboardOpen(window.visualViewport.height < keyboardThreshold);
+      }
+    };
+
+    // Add visualViewport listener for keyboard detection
+    if (typeof window !== "undefined" && window.visualViewport) {
+      window.visualViewport.addEventListener(
+        "resize",
+        handleVisualViewportResize
+      );
+    }
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleResize);
+      if (typeof window !== "undefined" && window.visualViewport) {
+        window.visualViewport.removeEventListener(
+          "resize",
+          handleVisualViewportResize
+        );
+      }
+    };
+  }, [isMobile]);
 
   const applyTheme = (themeName: string) => {
     const theme = themes.themes.find((t: Theme) => t.name === themeName);
@@ -106,21 +311,30 @@ export default function Home() {
     // Don't execute empty commands
     if (!command.trim()) return;
 
+    // Don't allow command execution during streaming
+    if (isStreaming) return;
+
     // Add to command history
     setCommandHistory((prev) => [...prev, command]);
     setHistoryIndex(-1);
 
     // Show the command in the terminal
     if (terminal.current) {
-      let terminal_state = terminal.current.innerHTML;
-      terminal_state += renderCommandLine(command);
-      terminal.current.innerHTML = terminal_state;
+      // Add command line immediately (don't stream the command itself)
+      const commandLine = renderCommandLine(command);
+      terminal.current.innerHTML += commandLine;
       forceScrollToBottom();
+
+      // Process command after displaying the command line
+      setTimeout(() => {
+        // Process command
+        const lowerCommand = command.trim().toLowerCase();
+        processCommand(lowerCommand, command);
+      }, 100);
     }
+  };
 
-    // Process command
-    const lowerCommand = command.trim().toLowerCase();
-
+  const processCommand = (lowerCommand: string, originalCommand: string) => {
     switch (lowerCommand) {
       case "help":
         displayHelpMessage();
@@ -129,7 +343,7 @@ export default function Home() {
         clearTerminal();
         break;
       case "banner":
-        displayBanner();
+        displayBanner(false);
         break;
       case "about":
         displayAboutMessage();
@@ -142,9 +356,6 @@ export default function Home() {
         );
         addOutput("Opening LinkedIn profile...");
         break;
-      case "projects":
-        displayProjects();
-        break;
       case "github":
         window.open(
           "https://github.com/importTahsinZaman",
@@ -152,14 +363,6 @@ export default function Home() {
           "noopener,noreferrer"
         );
         addOutput("Opening GitHub profile...");
-        break;
-      case "repo":
-        window.open(
-          "https://github.com/importTahsinZaman/personal-website",
-          "_blank",
-          "noopener,noreferrer"
-        );
-        addOutput("Opening this website's repository...");
         break;
       case "email":
         displayEmail();
@@ -169,7 +372,7 @@ export default function Home() {
         break;
       default:
         if (lowerCommand.startsWith("theme ")) {
-          const themeName = command.split(" ")[1];
+          const themeName = originalCommand.split(" ")[1];
           const foundTheme = themes.themes.find(
             (t: Theme) => t.name.toLowerCase() === themeName.toLowerCase()
           );
@@ -182,109 +385,142 @@ export default function Home() {
             );
           }
         } else {
-          displayErrorMessage(command);
+          displayErrorMessage(originalCommand);
         }
         break;
     }
-
-    // After processing any command, make sure to scroll
-    forceScrollToBottom();
   };
 
   const addOutput = (content: string) => {
     if (terminal.current) {
-      terminal.current.innerHTML += `<div class="${styles.commandResult}">${content}</div>`;
-      forceScrollToBottom();
+      setIsStreaming(true);
+      const div = document.createElement("div");
+      div.className = styles.commandResult;
+      div.style.margin = "12px 0 4px 0";
+      terminal.current.appendChild(div);
+
+      streamTextToElement(div, content, 5, () => {
+        setIsStreaming(false);
+        forceScrollToBottom();
+      });
     }
   };
 
   const displayHelpMessage = () => {
-    addOutput(`<div style="margin: 0; padding: 0"><p style="margin: 0; padding: 0;"><strong>Available commands:</strong></p><table class="${styles.infoTable}" style="margin-top: 0;">
-    <tr><td>about</td><td>Learn about me</td></tr>
-    <tr><td>banner</td><td>Display the welcome banner</td></tr>
-    <tr><td>clear</td><td>Clear the terminal</td></tr>
-    <tr><td>email</td><td>Show my email address</td></tr>
-    <tr><td>github</td><td>Open my GitHub profile</td></tr>
-    <tr><td>help</td><td>Show this help message</td></tr>
-    <tr><td>linkedin</td><td>Open my LinkedIn profile</td></tr>
-    <tr><td>projects</td><td>View my projects</td></tr>
-    <tr><td>repo</td><td>View the source code for this website</td></tr>
-    <tr><td>themes</td><td>List available color themes</td></tr>
-    <tr><td>theme [name]</td><td>Switch to a different color theme</td></tr>
-  </table></div>`);
+    if (terminal.current) {
+      setIsStreaming(true);
+
+      const helpContent = `<p style="margin: 0 0 4px 0; padding: 0;"><strong>Available commands:</strong></p><table class="${styles.infoTable}" style="margin: 0;">
+      <tr><td>about</td><td>Learn about me</td></tr>
+      <tr><td>banner</td><td>Display the welcome banner</td></tr>
+      <tr><td>clear</td><td>Clear the terminal</td></tr>
+      <tr><td>email</td><td>Show my email address</td></tr>
+      <tr><td>github</td><td>Open my GitHub profile</td></tr>
+      <tr><td>help</td><td>Show this help message</td></tr>
+      <tr><td>linkedin</td><td>Open my LinkedIn profile</td></tr>
+      <tr><td>themes</td><td>List available color themes</td></tr>
+      <tr><td>theme [name]</td><td>Switch to a different color theme</td></tr>
+      </table>`;
+
+      const div = document.createElement("div");
+      div.style.margin = "12px 0 4px 0";
+      div.style.padding = "0";
+      terminal.current.appendChild(div);
+
+      streamTextToElement(div, helpContent, 3, () => {
+        setIsStreaming(false);
+        forceScrollToBottom();
+      });
+    }
   };
 
   const clearTerminal = () => {
     if (terminal.current) {
       terminal.current.innerHTML = "";
+      setIsStreaming(false);
     }
   };
 
   const displayEmail = () => {
-    addOutput(`
-<div style="margin: 0">
-  <p>📧 Email: <a href="mailto:tahsinz21366@gmail.com">tahsinz21366@gmail.com</a></p>
-</div>
-    `);
+    if (terminal.current) {
+      setIsStreaming(true);
+
+      const emailContent = `<p>📧 Email: <a href="mailto:tahsinz21366@gmail.com">tahsinz21366@gmail.com</a></p>`;
+
+      const div = document.createElement("div");
+      div.style.margin = "12px 0 4px 0";
+      terminal.current.appendChild(div);
+
+      streamTextToElement(div, emailContent, 5, () => {
+        setIsStreaming(false);
+        forceScrollToBottom();
+      });
+    }
   };
 
   const displayAboutMessage = () => {
-    addOutput(`<div style="margin-top: -14px;">
-  <p>hi, i'm <strong>tahsin zaman</strong> – a passionate developer and tech enthusiast.</p>
-  <p style="margin-top: 4px">i'm currently building the ai workspace for devops over at <a href="https://a37.ai/" target="_blank" rel="noopener noreferrer">a37.ai</a></p>
-</div>`);
-  };
+    if (terminal.current) {
+      setIsStreaming(true);
 
-  const displayProjects = () => {
-    addOutput(`
-<div style="margin: 0">
-  <h3 style="margin-bottom: 3px;">My Projects</h3>
-  <div style="margin-bottom: 4px;">
-    <p><strong style="color: var(--primary-color);">Personal Website</strong></p>
-    <p>This terminal-themed personal website built with Next.js.</p>
-    <a href="https://github.com/importTahsinZaman/personal-website" target="_blank" rel="noopener noreferrer">View on GitHub</a>
-  </div>
-  
-  <div>
-    <p><strong style="color: var(--primary-color);">Other Projects</strong></p>
-    <p>More projects can be found on my GitHub profile.</p>
-  </div>
-</div>
-    `);
+      const aboutContent = `<p>hi, i'm <strong>tahsin zaman</strong> – a passionate developer and tech enthusiast.</p>
+      <p style="margin-top: 4px">i'm currently building the ai workspace for devops over at <a href="https://a37.ai/" target="_blank" rel="noopener noreferrer">a37.ai</a></p>`;
+
+      const div = document.createElement("div");
+      div.style.margin = "12px 0 0 0";
+      terminal.current.appendChild(div);
+
+      streamTextToElement(div, aboutContent, 5, () => {
+        setIsStreaming(false);
+        forceScrollToBottom();
+      });
+    }
   };
 
   const displayThemes = () => {
-    let themeButtons = "";
+    if (terminal.current) {
+      setIsStreaming(true);
 
-    themes.themes.forEach((theme: Theme) => {
-      themeButtons += `<span onclick="document.dispatchEvent(new CustomEvent('changeTheme', { detail: '${
-        theme.name
-      }' }))" style="background-color: ${
-        theme.colors["primary-color"]
-      }; display: inline-block; width: 14px; height: 14px; margin-right: 6px; border-radius: 50%; cursor: pointer; border: 2px solid ${
-        theme.name === currentTheme ? "white" : "transparent"
-      }"></span>`;
-    });
+      let themeButtons = "";
+      themes.themes.forEach((theme: Theme) => {
+        themeButtons += `<span class="${
+          styles.themeToggle
+        }" onclick="document.dispatchEvent(new CustomEvent('changeTheme', { detail: '${
+          theme.name
+        }' }))" style="background-color: ${
+          theme.colors["primary-color"]
+        }; display: inline-block; width: 14px; height: 14px; margin-right: 6px; border-radius: 50%; cursor: pointer; border: 2px solid ${
+          theme.name === currentTheme ? "white" : "transparent"
+        }"></span>`;
+      });
 
-    addOutput(`<div style="margin-top: -5px; line-height: 0.5;">
-  <p style="margin: 0; padding: 0;"><strong>Available themes:</strong></p>
-  <p style="margin: -3px 0 0 0; padding: 0;">Current theme: <span style="color: var(--primary-color)">${currentTheme}</span></p>
-  <div style="margin-top: -9px; padding: 0;">
-    ${themes.themes
-      .map(
-        (theme: Theme) =>
-          `<div style="margin: -1px 0; padding: 0;"><code>theme ${theme.name}</code> - ${theme.name}</div>`
-      )
-      .join("")}
-  </div>
-  <p style="margin: -2px 0 0 0;">Click to preview: ${themeButtons}</p>
-</div>`);
+      const themesContent = `<p style="margin: 0; padding: 0;"><strong>Available themes:</strong></p>
+      <p style="margin: 3px 0 0 0; padding: 0;">Current theme: <span style="color: var(--primary-color)">${currentTheme}</span></p>
+      <div style="margin-top: 3px; padding: 0;">
+        ${themes.themes
+          .map(
+            (theme: Theme) =>
+              `<div style="margin: 2px 0; padding: 0;"><code>theme ${theme.name}</code> - ${theme.name}</div>`
+          )
+          .join("")}
+      </div>
+      <p style="margin: 3px 0 0 0;">Click to preview: ${themeButtons}</p>`;
 
-    // Add theme change event listener
-    document.addEventListener("changeTheme", ((e: Event) => {
-      const customEvent = e as CustomEvent<string>;
-      applyTheme(customEvent.detail);
-    }) as EventListener);
+      const div = document.createElement("div");
+      div.style.margin = "12px 0 0 0";
+      div.style.lineHeight = "1.2";
+      terminal.current.appendChild(div);
+
+      streamTextToElement(div, themesContent, 3, () => {
+        setIsStreaming(false);
+        forceScrollToBottom();
+
+        // Add theme change event listener
+        document.addEventListener("changeTheme", ((e: Event) => {
+          const customEvent = e as CustomEvent<string>;
+          applyTheme(customEvent.detail);
+        }) as EventListener);
+      });
+    }
   };
 
   const scrollToBottom = (delay = 0) => {
@@ -301,12 +537,31 @@ export default function Home() {
     }
   };
 
-  const displayBanner = () => {
+  const displayBanner = (isInitialLoad = false) => {
     if (terminal.current) {
-      terminal.current.innerHTML = `
-<div style="max-width: 100%; overflow-x: auto;">
-<pre class="${styles.asciiArt}">
-████████╗ █████╗ ██╗  ██╗███████╗██╗███╗   ██╗
+      if (isInitialLoad) {
+        // On initial load, clear the content first
+        terminal.current.innerHTML = "";
+      }
+
+      setIsStreaming(true);
+
+      // Create container for the banner
+      const bannerContainer = document.createElement("div");
+      bannerContainer.style.margin = "0";
+      bannerContainer.style.padding = "0";
+      terminal.current.appendChild(bannerContainer);
+
+      // Create container for ASCII art
+      const asciiArtContainer = document.createElement("div");
+      asciiArtContainer.style.maxWidth = "100%";
+      asciiArtContainer.style.overflowX = "auto";
+      asciiArtContainer.style.margin = "0";
+      asciiArtContainer.style.padding = "0";
+      bannerContainer.appendChild(asciiArtContainer);
+
+      // ASCII art content
+      const asciiArt = `████████╗ █████╗ ██╗  ██╗███████╗██╗███╗   ██╗
 ╚══██╔══╝██╔══██╗██║  ██║██╔════╝██║████╗  ██║
    ██║   ███████║███████║███████╗██║██╔██╗ ██║
    ██║   ██╔══██║██╔══██║╚════██║██║██║╚██╗██║
@@ -318,25 +573,52 @@ export default function Home() {
   ███╔╝ ███████║██╔████╔██║███████║██╔██╗ ██║
  ███╔╝  ██╔══██║██║╚██╔╝██║██╔══██║██║╚██╗██║
 ███████╗██║  ██║██║ ╚═╝ ██║██║  ██║██║ ╚████║
-╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝</pre>
-</div>
-<p style="margin: 2px 0; color: var(--accent-color);">co-Founder and cto at <a href="https://a37.ai/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-color);">a37.ai</a>; mit dropout</p>
-<p>Type <span style="color: var(--primary-color)">help</span> to see available commands</p>
-      `;
+╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝`;
 
-      // Force scroll to bottom after displaying banner
-      forceScrollToBottom();
+      // Use the new chunked streaming approach - process 20 characters per frame
+      streamAsciiArt(
+        asciiArtContainer,
+        asciiArt,
+        6, // Process 6 characters per animation frame (70% slower than before)
+        () => {
+          // Stream the text below the ASCII art once ASCII art streaming is complete
+          const textContainer = document.createElement("div");
+          textContainer.style.margin = "8px 0 0 0";
+          bannerContainer.appendChild(textContainer);
+
+          const bannerText = `<p style="margin: 0 0 4px 0; color: var(--accent-color);">co-founder and cto at <a href="https://a37.ai/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-color);">a37.ai</a>; mit dropout</p>
+        <p style="margin: 0;">Type <span style="color: var(--primary-color)">help</span> to see available commands</p>`;
+
+          streamTextToElement(textContainer, bannerText, 8, () => {
+            setIsStreaming(false);
+            forceScrollToBottom();
+          });
+        },
+        terminal
+      );
     }
   };
 
   const displayErrorMessage = (command: string) => {
-    addOutput(
-      `<p style="margin: 0; padding: 0;">Command not found: <span style="color: var(--secondary-color)">${command}</span>. Try <span style="color: var(--primary-color)">help</span> to see available commands.</p>`
-    );
+    if (terminal.current) {
+      setIsStreaming(true);
+
+      const errorContainer = document.createElement("p");
+      errorContainer.style.margin = "12px 0 4px 0";
+      errorContainer.style.padding = "0";
+      terminal.current.appendChild(errorContainer);
+
+      const errorContent = `Command not found: <span style="color: var(--secondary-color)">${command}</span>. Try <span style="color: var(--primary-color)">help</span> to see available commands.`;
+
+      streamTextToElement(errorContainer, errorContent, 10, () => {
+        setIsStreaming(false);
+        forceScrollToBottom();
+      });
+    }
   };
 
   const renderCommandLine = (text: string) => {
-    return `<div class="${styles.newline}"><div class="${styles.prompt}"><span class="${styles.promptUsername}">guest</span><span class="${styles.promptSeparator}">@</span><span class="${styles.promptPath}">tahsinzaman:~$</span></div><span style="margin-left: 3px;">${text}</span></div>`;
+    return `<div class="${styles.newline}" style="margin-bottom: 15px;"><div class="${styles.prompt}"><span class="${styles.promptUsername}">guest</span><span class="${styles.promptSeparator}">@</span><span class="${styles.promptPath}">tahsinzaman:~$</span></div><span style="margin-left: 3px;">${text}</span></div>`;
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -424,7 +706,7 @@ export default function Home() {
   const handleInputKeyUp = (e: React.KeyboardEvent<HTMLInputElement>) => {
     setCaretPosition(e.currentTarget.selectionStart || 0);
 
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !isStreaming) {
       executeCommand(e.currentTarget.value);
       e.currentTarget.value = "";
       setCaretPosition(0);
@@ -491,6 +773,44 @@ export default function Home() {
     );
   };
 
+  // Handle mobile input blur (focus loss)
+  const handleInputBlur = () => {
+    // On mobile, don't immediately refocus as it can be annoying
+    // when trying to scroll or navigate
+    if (!isMobile && inputRef.current) {
+      setTimeout(() => {
+        if (document.activeElement !== inputRef.current && inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 100);
+    }
+  };
+
+  // Handle mobile touch on container to focus input
+  const handleContainerTouch = () => {
+    if (inputRef.current && isMobile) {
+      inputRef.current.focus();
+    }
+  };
+
+  // Add special event handler for mobile command buttons
+  const handleCommandButtonClick = (command: string) => {
+    if (inputRef.current) {
+      inputRef.current.value = command;
+      executeCommand(command);
+    }
+  };
+
+  // Handle focus for mobile
+  const handleInputFocus = () => {
+    if (isMobile) {
+      // Delay scrolling to bottom to account for keyboard opening
+      setTimeout(() => {
+        forceScrollToBottom();
+      }, 300);
+    }
+  };
+
   return (
     <>
       <Head>
@@ -499,10 +819,17 @@ export default function Home() {
           name="description"
           content="Tahsin Zaman's Terminal-themed Personal Website"
         />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"
+        />
+        <meta name="theme-color" content="#161b22" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         <link rel="icon" href="/logo.png" />
       </Head>
-      <main className={styles.main}>
+      <main
+        className={`${styles.main} ${isKeyboardOpen ? "keyboard-open" : ""}`}
+      >
         <div className={styles.container}>
           <div className={styles.terminalHeader}>
             <div className={styles.terminalControls}>
@@ -519,7 +846,7 @@ export default function Home() {
             <div className={styles.terminalTitle}>guest@tahsinzaman:~</div>
             {isMounted && <ThemeSelector />}
           </div>
-          <div className={styles.container2}>
+          <div className={styles.container2} onClick={handleContainerTouch}>
             <div className={styles.terminal} ref={terminal}></div>
             <div className={styles.inputLine}>
               <div className={styles.prompt}>
@@ -537,14 +864,64 @@ export default function Home() {
                   onKeyUp={handleInputKeyUp}
                   onChange={handleInputChange}
                   onClick={handleInputClick}
+                  onBlur={handleInputBlur}
+                  onFocus={handleInputFocus}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck="false"
+                  autoCapitalize="none"
                   autoFocus
                 />
                 {isMounted && <TerminalCaret />}
               </div>
             </div>
           </div>
+
+          {/* Mobile command buttons - only shown on mobile */}
+          {isMobile && isMounted && (
+            <div
+              style={{
+                position: "fixed",
+                bottom: isKeyboardOpen ? "55%" : "10px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                display: "flex",
+                gap: "8px",
+                zIndex: 100,
+                justifyContent: "center",
+                flexWrap: "wrap",
+                width: "90%",
+                maxWidth: "400px",
+                backgroundColor: "rgba(0,0,0,0.6)",
+                padding: "6px",
+                borderRadius: "16px",
+                transition: "bottom 0.3s ease",
+              }}
+            >
+              {["help", "about", "github", "themes", "clear"].map((cmd) => (
+                <button
+                  key={cmd}
+                  onClick={() => handleCommandButtonClick(cmd)}
+                  style={{
+                    backgroundColor: "var(--primary-color)",
+                    color: "var(--container-bg)",
+                    border: "none",
+                    borderRadius: "12px",
+                    padding: isPortrait ? "8px 12px" : "6px 10px",
+                    fontSize: isPortrait ? "14px" : "12px",
+                    fontWeight: "bold",
+                    opacity: 0.9,
+                    touchAction: "manipulation",
+                    minHeight: isPortrait ? "36px" : "30px",
+                  }}
+                >
+                  {cmd}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-        {isMounted && <AutoFocus inputRef={inputRef} />}
+        {isMounted && <AutoFocus inputRef={inputRef} isMobile={isMobile} />}
       </main>
     </>
   );

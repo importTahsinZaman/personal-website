@@ -280,14 +280,32 @@
   padding: 10px 0;
 }
 
+.themeButton {
+  width: 12px;
+  height: 12px;
+  margin-right: 8px;
+}
+
+/* Theme toggle button */
+.themeToggle {
+  min-width: 24px;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 @media (max-width: 768px) {
   .main {
-    padding: 0.5rem;
+    padding: 1rem;
+    height: 100vh;
+    align-items: flex-start;
   }
 
   .container {
     width: 100%;
-    height: 95vh;
+    height: 90vh;
+    max-width: 100%;
     border-radius: 8px;
   }
 
@@ -296,11 +314,11 @@
   }
 
   .profileImage {
-    max-width: 150px;
+    max-width: 120px;
   }
 
   .terminalTitle {
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .prompt,
@@ -309,34 +327,94 @@
   }
 
   .asciiArt {
-    font-size: 10px;
+    font-size: 6px;
+    line-height: 8px;
+  }
+
+  .themeSelector {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
+
+  .terminalButton {
+    width: 10px;
+    height: 10px;
+    margin-right: 6px;
   }
 }
 
 @media (max-width: 480px) {
   .main {
-    padding: 0.25rem;
+    padding: 0.5rem;
+    height: 100vh;
   }
 
   .container {
-    height: 98vh;
+    width: 100%;
+    height: 92vh;
     border-radius: 6px;
   }
 
   .container2 {
-    padding: 10px;
+    padding: 8px 10px 0 10px;
   }
 
   .terminalControls {
-    display: none;
+    margin-right: 5px;
   }
 
   .terminalTitle {
-    text-align: left;
+    font-size: 12px;
   }
 
   .prompt,
   .input {
+    font-size: 13px;
+  }
+
+  .terminalCaret {
+    height: 14px;
+  }
+
+  .inputLine {
+    padding-bottom: 8px;
+  }
+
+  .socialButton {
+    padding: 3px 6px;
     font-size: 12px;
+  }
+
+  .asciiArt {
+    font-size: 4px;
+    line-height: 6px;
+  }
+
+  /* Fix touch spacing */
+  .themeButton {
+    width: 12px;
+    height: 12px;
+    margin-right: 8px;
+  }
+
+  /* Improve touch targets - using the module class instead of span[onclick] */
+  .themeToggle {
+    min-width: 24px;
+    min-height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* Add specific mobile keyboard handling */
+@media (max-height: 450px) {
+  .container {
+    height: 85vh;
+  }
+
+  .terminal {
+    max-height: 60vh;
   }
 }
