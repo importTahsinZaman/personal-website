@@ -87,6 +87,47 @@ const streamTextToElement = (
   typeNextChar();
 };
 
+// ASCII Art streaming utility function for banner
+const streamAsciiArt = (
+  element: HTMLElement,
+  asciiArt: string,
+  speed: number = 2, // faster speed for ASCII art
+  onComplete?: () => void,
+  terminalRef?: React.RefObject<HTMLDivElement>
+) => {
+  // Split ASCII art into lines
+  const lines = asciiArt.trim().split("\n");
+
+  // Create pre element
+  const pre = document.createElement("pre");
+  pre.className = styles.asciiArt;
+  element.appendChild(pre);
+
+  // Stream each line
+  let lineIndex = 0;
+
+  const streamNextLine = () => {
+    if (lineIndex >= lines.length) {
+      if (onComplete) onComplete();
+      return;
+    }
+
+    // Add the next line with a new line break
+    pre.innerHTML += lines[lineIndex] + "\n";
+    lineIndex++;
+
+    // Scroll to ensure visibility
+    if (terminalRef?.current) {
+      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+    }
+
+    // Continue with next line after delay
+    setTimeout(streamNextLine, speed * 40); // Delay between lines
+  };
+
+  streamNextLine();
+};
+
 // Component to maintain focus on the input field
 const AutoFocus = ({
   inputRef,
@@ -470,14 +511,16 @@ export default function Home() {
       bannerContainer.style.padding = "0";
       terminal.current.appendChild(bannerContainer);
 
-      // Add the ASCII art immediately (don't stream it)
+      // Create container for ASCII art
       const asciiArtContainer = document.createElement("div");
       asciiArtContainer.style.maxWidth = "100%";
       asciiArtContainer.style.overflowX = "auto";
       asciiArtContainer.style.margin = "0";
       asciiArtContainer.style.padding = "0";
-      asciiArtContainer.innerHTML = `<pre class="${styles.asciiArt}">
-████████╗ █████╗ ██╗  ██╗███████╗██╗███╗   ██╗
+      bannerContainer.appendChild(asciiArtContainer);
+
+      // ASCII art content
+      const asciiArt = `████████╗ █████╗ ██╗  ██╗███████╗██╗███╗   ██╗
 ╚══██╔══╝██╔══██╗██║  ██║██╔════╝██║████╗  ██║
    ██║   ███████║███████║███████╗██║██╔██╗ ██║
    ██║   ██╔══██║██╔══██║╚════██║██║██║╚██╗██║
@@ -489,21 +532,29 @@ export default function Home() {
   ███╔╝ ███████║██╔████╔██║███████║██╔██╗ ██║
  ███╔╝  ██╔══██║██║╚██╔╝██║██╔══██║██║╚██╗██║
 ███████╗██║  ██║██║ ╚═╝ ██║██║  ██║██║ ╚████║
-╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝</pre>`;
-      bannerContainer.appendChild(asciiArtContainer);
+╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝`;
 
-      // Stream the text below the ASCII art
-      const textContainer = document.createElement("div");
-      textContainer.style.margin = "8px 0 0 0";
-      bannerContainer.appendChild(textContainer);
+      // Stream the ASCII art
+      streamAsciiArt(
+        asciiArtContainer,
+        asciiArt,
+        2,
+        () => {
+          // Stream the text below the ASCII art once ASCII art streaming is complete
+          const textContainer = document.createElement("div");
+          textContainer.style.margin = "8px 0 0 0";
+          bannerContainer.appendChild(textContainer);
 
-      const bannerText = `<p style="margin: 0 0 4px 0; color: var(--accent-color);">co-Founder and cto at <a href="https://a37.ai/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-color);">a37.ai</a>; mit dropout</p>
-      <p style="margin: 0;">Type <span style="color: var(--primary-color)">help</span> to see available commands</p>`;
+          const bannerText = `<p style="margin: 0 0 4px 0; color: var(--accent-color);">co-Founder and cto at <a href="https://a37.ai/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-color);">a37.ai</a>; mit dropout</p>
+        <p style="margin: 0;">Type <span style="color: var(--primary-color)">help</span> to see available commands</p>`;
 
-      streamTextToElement(textContainer, bannerText, 8, () => {
-        setIsStreaming(false);
-        forceScrollToBottom();
-      });
+          streamTextToElement(textContainer, bannerText, 8, () => {
+            setIsStreaming(false);
+            forceScrollToBottom();
+          });
+        },
+        terminal
+      );
     }
   };
 
