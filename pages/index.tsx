@@ -24,6 +24,69 @@ interface Theme {
   colors: ThemeColors;
 }
 
+// Simplified text streaming utility function
+const streamTextToElement = (
+  element: HTMLElement,
+  content: string,
+  speed: number = 10,
+  onComplete?: () => void
+) => {
+  const tempDiv = document.createElement("div");
+
+  // Create a temporary container
+  const container = document.createElement("div");
+  container.innerHTML = content;
+
+  // Append the container to the terminal
+  element.appendChild(container);
+
+  // Get all text nodes
+  const textNodes: Text[] = [];
+  const getTextNodes = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim()) {
+      textNodes.push(node as Text);
+    } else {
+      node.childNodes.forEach((child) => getTextNodes(child));
+    }
+  };
+
+  getTextNodes(container);
+
+  // Store original content and clear text
+  const originalContents = textNodes.map((node) => node.textContent || "");
+  textNodes.forEach((node) => {
+    node.textContent = "";
+  });
+
+  // Stream text into each node sequentially
+  let currentNodeIndex = 0;
+  let currentCharIndex = 0;
+
+  const typeNextChar = () => {
+    if (currentNodeIndex >= textNodes.length) {
+      if (onComplete) onComplete();
+      return;
+    }
+
+    const currentNode = textNodes[currentNodeIndex];
+    const originalText = originalContents[currentNodeIndex];
+
+    if (currentCharIndex < originalText.length) {
+      // Add next character
+      currentNode.textContent = originalText.substring(0, currentCharIndex + 1);
+      currentCharIndex++;
+      setTimeout(typeNextChar, speed);
+    } else {
+      // Move to next node
+      currentNodeIndex++;
+      currentCharIndex = 0;
+      setTimeout(typeNextChar, speed * 2);
+    }
+  };
+
+  typeNextChar();
+};
+
 // Component to maintain focus on the input field
 const AutoFocus = ({
   inputRef,
@@ -83,6 +146,7 @@ export default function Home() {
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const [isPortrait, setIsPortrait] = useState<boolean>(true);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState<boolean>(false);
+  const [isStreaming, setIsStreaming] = useState<boolean>(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -165,21 +229,30 @@ export default function Home() {
     // Don't execute empty commands
     if (!command.trim()) return;
 
+    // Don't allow command execution during streaming
+    if (isStreaming) return;
+
     // Add to command history
     setCommandHistory((prev) => [...prev, command]);
     setHistoryIndex(-1);
 
     // Show the command in the terminal
     if (terminal.current) {
-      let terminal_state = terminal.current.innerHTML;
-      terminal_state += renderCommandLine(command);
-      terminal.current.innerHTML = terminal_state;
+      // Add command line immediately (don't stream the command itself)
+      const commandLine = renderCommandLine(command);
+      terminal.current.innerHTML += commandLine;
       forceScrollToBottom();
+
+      // Process command after displaying the command line
+      setTimeout(() => {
+        // Process command
+        const lowerCommand = command.trim().toLowerCase();
+        processCommand(lowerCommand, command);
+      }, 100);
     }
+  };
 
-    // Process command
-    const lowerCommand = command.trim().toLowerCase();
-
+  const processCommand = (lowerCommand: string, originalCommand: string) => {
     switch (lowerCommand) {
       case "help":
         displayHelpMessage();
@@ -217,7 +290,7 @@ export default function Home() {
         break;
       default:
         if (lowerCommand.startsWith("theme ")) {
-          const themeName = command.split(" ")[1];
+          const themeName = originalCommand.split(" ")[1];
           const foundTheme = themes.themes.find(
             (t: Theme) => t.name.toLowerCase() === themeName.toLowerCase()
           );
@@ -230,91 +303,142 @@ export default function Home() {
             );
           }
         } else {
-          displayErrorMessage(command);
+          displayErrorMessage(originalCommand);
         }
         break;
     }
-
-    // After processing any command, make sure to scroll
-    forceScrollToBottom();
   };
 
   const addOutput = (content: string) => {
     if (terminal.current) {
-      terminal.current.innerHTML += `<div class="${styles.commandResult}">${content}</div>`;
-      forceScrollToBottom();
+      setIsStreaming(true);
+      const div = document.createElement("div");
+      div.className = styles.commandResult;
+      div.style.margin = "4px 0";
+      terminal.current.appendChild(div);
+
+      streamTextToElement(div, content, 5, () => {
+        setIsStreaming(false);
+        forceScrollToBottom();
+      });
     }
   };
 
   const displayHelpMessage = () => {
-    addOutput(`<div style="margin: 0; padding: 0"><p style="margin: 0; padding: 0;"><strong>Available commands:</strong></p><table class="${styles.infoTable}" style="margin-top: 0;">
-    <tr><td>about</td><td>Learn about me</td></tr>
-    <tr><td>banner</td><td>Display the welcome banner</td></tr>
-    <tr><td>clear</td><td>Clear the terminal</td></tr>
-    <tr><td>email</td><td>Show my email address</td></tr>
-    <tr><td>github</td><td>Open my GitHub profile</td></tr>
-    <tr><td>help</td><td>Show this help message</td></tr>
-    <tr><td>linkedin</td><td>Open my LinkedIn profile</td></tr>
-    <tr><td>themes</td><td>List available color themes</td></tr>
-    <tr><td>theme [name]</td><td>Switch to a different color theme</td></tr>
-  </table></div>`);
+    if (terminal.current) {
+      setIsStreaming(true);
+
+      const helpContent = `<p style="margin: 0 0 4px 0; padding: 0;"><strong>Available commands:</strong></p><table class="${styles.infoTable}" style="margin: 0;">
+      <tr><td>about</td><td>Learn about me</td></tr>
+      <tr><td>banner</td><td>Display the welcome banner</td></tr>
+      <tr><td>clear</td><td>Clear the terminal</td></tr>
+      <tr><td>email</td><td>Show my email address</td></tr>
+      <tr><td>github</td><td>Open my GitHub profile</td></tr>
+      <tr><td>help</td><td>Show this help message</td></tr>
+      <tr><td>linkedin</td><td>Open my LinkedIn profile</td></tr>
+      <tr><td>themes</td><td>List available color themes</td></tr>
+      <tr><td>theme [name]</td><td>Switch to a different color theme</td></tr>
+      </table>`;
+
+      const div = document.createElement("div");
+      div.style.margin = "4px 0";
+      div.style.padding = "0";
+      terminal.current.appendChild(div);
+
+      streamTextToElement(div, helpContent, 3, () => {
+        setIsStreaming(false);
+        forceScrollToBottom();
+      });
+    }
   };
 
   const clearTerminal = () => {
     if (terminal.current) {
       terminal.current.innerHTML = "";
+      setIsStreaming(false);
     }
   };
 
   const displayEmail = () => {
-    addOutput(`
-<div style="margin: 0">
-  <p>📧 Email: <a href="mailto:tahsinz21366@gmail.com">tahsinz21366@gmail.com</a></p>
-</div>
-    `);
+    if (terminal.current) {
+      setIsStreaming(true);
+
+      const emailContent = `<p>📧 Email: <a href="mailto:tahsinz21366@gmail.com">tahsinz21366@gmail.com</a></p>`;
+
+      const div = document.createElement("div");
+      div.style.margin = "4px 0";
+      terminal.current.appendChild(div);
+
+      streamTextToElement(div, emailContent, 5, () => {
+        setIsStreaming(false);
+        forceScrollToBottom();
+      });
+    }
   };
 
   const displayAboutMessage = () => {
-    addOutput(`<div style="margin-top: -14px;">
-  <p>hi, i'm <strong>tahsin zaman</strong> – a passionate developer and tech enthusiast.</p>
-  <p style="margin-top: 4px">i'm currently building the ai workspace for devops over at <a href="https://a37.ai/" target="_blank" rel="noopener noreferrer">a37.ai</a></p>
-</div>`);
+    if (terminal.current) {
+      setIsStreaming(true);
+
+      const aboutContent = `<p>hi, i'm <strong>tahsin zaman</strong> – a passionate developer and tech enthusiast.</p>
+      <p style="margin-top: 4px">i'm currently building the ai workspace for devops over at <a href="https://a37.ai/" target="_blank" rel="noopener noreferrer">a37.ai</a></p>`;
+
+      const div = document.createElement("div");
+      div.style.margin = "0";
+      terminal.current.appendChild(div);
+
+      streamTextToElement(div, aboutContent, 5, () => {
+        setIsStreaming(false);
+        forceScrollToBottom();
+      });
+    }
   };
 
   const displayThemes = () => {
-    let themeButtons = "";
+    if (terminal.current) {
+      setIsStreaming(true);
 
-    themes.themes.forEach((theme: Theme) => {
-      themeButtons += `<span class="${
-        styles.themeToggle
-      }" onclick="document.dispatchEvent(new CustomEvent('changeTheme', { detail: '${
-        theme.name
-      }' }))" style="background-color: ${
-        theme.colors["primary-color"]
-      }; display: inline-block; width: 14px; height: 14px; margin-right: 6px; border-radius: 50%; cursor: pointer; border: 2px solid ${
-        theme.name === currentTheme ? "white" : "transparent"
-      }"></span>`;
-    });
+      let themeButtons = "";
+      themes.themes.forEach((theme: Theme) => {
+        themeButtons += `<span class="${
+          styles.themeToggle
+        }" onclick="document.dispatchEvent(new CustomEvent('changeTheme', { detail: '${
+          theme.name
+        }' }))" style="background-color: ${
+          theme.colors["primary-color"]
+        }; display: inline-block; width: 14px; height: 14px; margin-right: 6px; border-radius: 50%; cursor: pointer; border: 2px solid ${
+          theme.name === currentTheme ? "white" : "transparent"
+        }"></span>`;
+      });
 
-    addOutput(`<div style="margin-top: -5px; line-height: 0.5;">
-  <p style="margin: 0; padding: 0;"><strong>Available themes:</strong></p>
-  <p style="margin: -3px 0 0 0; padding: 0;">Current theme: <span style="color: var(--primary-color)">${currentTheme}</span></p>
-  <div style="margin-top: -9px; padding: 0;">
-    ${themes.themes
-      .map(
-        (theme: Theme) =>
-          `<div style="margin: -1px 0; padding: 0;"><code>theme ${theme.name}</code> - ${theme.name}</div>`
-      )
-      .join("")}
-  </div>
-  <p style="margin: -2px 0 0 0;">Click to preview: ${themeButtons}</p>
-</div>`);
+      const themesContent = `<p style="margin: 0; padding: 0;"><strong>Available themes:</strong></p>
+      <p style="margin: 3px 0 0 0; padding: 0;">Current theme: <span style="color: var(--primary-color)">${currentTheme}</span></p>
+      <div style="margin-top: 3px; padding: 0;">
+        ${themes.themes
+          .map(
+            (theme: Theme) =>
+              `<div style="margin: 2px 0; padding: 0;"><code>theme ${theme.name}</code> - ${theme.name}</div>`
+          )
+          .join("")}
+      </div>
+      <p style="margin: 3px 0 0 0;">Click to preview: ${themeButtons}</p>`;
 
-    // Add theme change event listener
-    document.addEventListener("changeTheme", ((e: Event) => {
-      const customEvent = e as CustomEvent<string>;
-      applyTheme(customEvent.detail);
-    }) as EventListener);
+      const div = document.createElement("div");
+      div.style.margin = "0";
+      div.style.lineHeight = "1.2";
+      terminal.current.appendChild(div);
+
+      streamTextToElement(div, themesContent, 3, () => {
+        setIsStreaming(false);
+        forceScrollToBottom();
+
+        // Add theme change event listener
+        document.addEventListener("changeTheme", ((e: Event) => {
+          const customEvent = e as CustomEvent<string>;
+          applyTheme(customEvent.detail);
+        }) as EventListener);
+      });
+    }
   };
 
   const scrollToBottom = (delay = 0) => {
@@ -332,9 +456,27 @@ export default function Home() {
   };
 
   const displayBanner = (isInitialLoad = false) => {
-    const bannerContent = `
-<div style="max-width: 100%; overflow-x: auto;">
-<pre class="${styles.asciiArt}">
+    if (terminal.current) {
+      if (isInitialLoad) {
+        // On initial load, clear the content first
+        terminal.current.innerHTML = "";
+      }
+
+      setIsStreaming(true);
+
+      // Create container for the banner
+      const bannerContainer = document.createElement("div");
+      bannerContainer.style.margin = "0";
+      bannerContainer.style.padding = "0";
+      terminal.current.appendChild(bannerContainer);
+
+      // Add the ASCII art immediately (don't stream it)
+      const asciiArtContainer = document.createElement("div");
+      asciiArtContainer.style.maxWidth = "100%";
+      asciiArtContainer.style.overflowX = "auto";
+      asciiArtContainer.style.margin = "0";
+      asciiArtContainer.style.padding = "0";
+      asciiArtContainer.innerHTML = `<pre class="${styles.asciiArt}">
 ████████╗ █████╗ ██╗  ██╗███████╗██╗███╗   ██╗
 ╚══██╔══╝██╔══██╗██║  ██║██╔════╝██║████╗  ██║
    ██║   ███████║███████║███████╗██║██╔██╗ ██║
@@ -347,30 +489,40 @@ export default function Home() {
   ███╔╝ ███████║██╔████╔██║███████║██╔██╗ ██║
  ███╔╝  ██╔══██║██║╚██╔╝██║██╔══██║██║╚██╗██║
 ███████╗██║  ██║██║ ╚═╝ ██║██║  ██║██║ ╚████║
-╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝</pre>
-</div>
-<p style="margin: 2px 0; color: var(--accent-color);">co-Founder and cto at <a href="https://a37.ai/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-color);">a37.ai</a>; mit dropout</p>
-<p>Type <span style="color: var(--primary-color)">help</span> to see available commands</p>
-    `;
+╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝</pre>`;
+      bannerContainer.appendChild(asciiArtContainer);
 
-    if (terminal.current) {
-      if (isInitialLoad) {
-        // On initial load, replace the content
-        terminal.current.innerHTML = bannerContent;
-      } else {
-        // When banner command is executed, append to existing content
-        addOutput(bannerContent);
-      }
+      // Stream the text below the ASCII art
+      const textContainer = document.createElement("div");
+      textContainer.style.margin = "8px 0 0 0";
+      bannerContainer.appendChild(textContainer);
 
-      // Force scroll to bottom after displaying banner
-      forceScrollToBottom();
+      const bannerText = `<p style="margin: 0 0 4px 0; color: var(--accent-color);">co-Founder and cto at <a href="https://a37.ai/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-color);">a37.ai</a>; mit dropout</p>
+      <p style="margin: 0;">Type <span style="color: var(--primary-color)">help</span> to see available commands</p>`;
+
+      streamTextToElement(textContainer, bannerText, 8, () => {
+        setIsStreaming(false);
+        forceScrollToBottom();
+      });
     }
   };
 
   const displayErrorMessage = (command: string) => {
-    addOutput(
-      `<p style="margin: 0; padding: 0;">Command not found: <span style="color: var(--secondary-color)">${command}</span>. Try <span style="color: var(--primary-color)">help</span> to see available commands.</p>`
-    );
+    if (terminal.current) {
+      setIsStreaming(true);
+
+      const errorContainer = document.createElement("p");
+      errorContainer.style.margin = "4px 0";
+      errorContainer.style.padding = "0";
+      terminal.current.appendChild(errorContainer);
+
+      const errorContent = `Command not found: <span style="color: var(--secondary-color)">${command}</span>. Try <span style="color: var(--primary-color)">help</span> to see available commands.`;
+
+      streamTextToElement(errorContainer, errorContent, 10, () => {
+        setIsStreaming(false);
+        forceScrollToBottom();
+      });
+    }
   };
 
   const renderCommandLine = (text: string) => {
@@ -462,7 +614,7 @@ export default function Home() {
   const handleInputKeyUp = (e: React.KeyboardEvent<HTMLInputElement>) => {
     setCaretPosition(e.currentTarget.selectionStart || 0);
 
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !isStreaming) {
       executeCommand(e.currentTarget.value);
       e.currentTarget.value = "";
       setCaretPosition(0);
