@@ -27,8 +27,10 @@ interface Theme {
 // Component to maintain focus on the input field
 const AutoFocus = ({
   inputRef,
+  isMobile,
 }: {
   inputRef: React.RefObject<HTMLInputElement>;
+  isMobile: boolean;
 }) => {
   useEffect(() => {
     // Focus the input when the component mounts
@@ -36,16 +38,23 @@ const AutoFocus = ({
       inputRef.current.focus();
     }
 
-    // Set up an interval to check focus and restore it if lost
-    const interval = setInterval(() => {
-      if (document.activeElement !== inputRef.current && inputRef.current) {
-        inputRef.current.focus();
-      }
-    }, 500);
+    // For non-mobile: Set up an interval to check focus and restore it if lost
+    let interval: NodeJS.Timeout | null = null;
 
-    // Add click listener to refocus
+    if (!isMobile) {
+      interval = setInterval(() => {
+        if (document.activeElement !== inputRef.current && inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 500);
+    }
+
+    // Add click listener to refocus (but be less aggressive on mobile)
     const handleClick = () => {
-      if (inputRef.current) {
+      if (
+        inputRef.current &&
+        (!isMobile || (isMobile && Math.random() > 0.5))
+      ) {
         inputRef.current.focus();
       }
     };
@@ -54,10 +63,10 @@ const AutoFocus = ({
 
     // Clean up
     return () => {
-      clearInterval(interval);
+      if (interval) clearInterval(interval);
       document.removeEventListener("click", handleClick);
     };
-  }, [inputRef]);
+  }, [inputRef, isMobile]);
 
   return null;
 };
@@ -71,9 +80,22 @@ export default function Home() {
   const [currentTheme, setCurrentTheme] = useState<string>("NeonNight");
   const [isMounted, setIsMounted] = useState<boolean>(false);
   const [caretPosition, setCaretPosition] = useState<number>(0);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [isPortrait, setIsPortrait] = useState<boolean>(true);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState<boolean>(false);
 
   useEffect(() => {
     setIsMounted(true);
+
+    // Detect if device is mobile and orientation
+    const checkMobileAndOrientation = () => {
+      setIsMobile(
+        window.innerWidth <= 768 || /Mobi|Android/i.test(navigator.userAgent)
+      );
+      setIsPortrait(window.innerHeight > window.innerWidth);
+    };
+
+    checkMobileAndOrientation();
 
     // Focus input on load
     if (inputRef.current) {
@@ -90,7 +112,44 @@ export default function Home() {
 
     // Apply theme from themes.json
     applyTheme(currentTheme);
-  }, []);
+
+    // Add resize and orientation change listeners
+    const handleResize = () => {
+      checkMobileAndOrientation();
+    };
+
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleResize);
+
+    // Detect keyboard opening on mobile (approximate)
+    const handleVisualViewportResize = () => {
+      if (isMobile && window.visualViewport) {
+        // If the viewport height is significantly less than the window height,
+        // we can assume the keyboard is open
+        const keyboardThreshold = window.innerHeight * 0.75;
+        setIsKeyboardOpen(window.visualViewport.height < keyboardThreshold);
+      }
+    };
+
+    // Add visualViewport listener for keyboard detection
+    if (typeof window !== "undefined" && window.visualViewport) {
+      window.visualViewport.addEventListener(
+        "resize",
+        handleVisualViewportResize
+      );
+    }
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleResize);
+      if (typeof window !== "undefined" && window.visualViewport) {
+        window.visualViewport.removeEventListener(
+          "resize",
+          handleVisualViewportResize
+        );
+      }
+    };
+  }, [isMobile]);
 
   const applyTheme = (themeName: string) => {
     const theme = themes.themes.find((t: Theme) => t.name === themeName);
@@ -142,9 +201,6 @@ export default function Home() {
         );
         addOutput("Opening LinkedIn profile...");
         break;
-      case "projects":
-        displayProjects();
-        break;
       case "github":
         window.open(
           "https://github.com/importTahsinZaman",
@@ -152,14 +208,6 @@ export default function Home() {
           "noopener,noreferrer"
         );
         addOutput("Opening GitHub profile...");
-        break;
-      case "repo":
-        window.open(
-          "https://github.com/importTahsinZaman/personal-website",
-          "_blank",
-          "noopener,noreferrer"
-        );
-        addOutput("Opening this website's repository...");
         break;
       case "email":
         displayEmail();
@@ -207,8 +255,6 @@ export default function Home() {
     <tr><td>github</td><td>Open my GitHub profile</td></tr>
     <tr><td>help</td><td>Show this help message</td></tr>
     <tr><td>linkedin</td><td>Open my LinkedIn profile</td></tr>
-    <tr><td>projects</td><td>View my projects</td></tr>
-    <tr><td>repo</td><td>View the source code for this website</td></tr>
     <tr><td>themes</td><td>List available color themes</td></tr>
     <tr><td>theme [name]</td><td>Switch to a different color theme</td></tr>
   </table></div>`);
@@ -235,29 +281,13 @@ export default function Home() {
 </div>`);
   };
 
-  const displayProjects = () => {
-    addOutput(`
-<div style="margin: 0">
-  <h3 style="margin-bottom: 3px;">My Projects</h3>
-  <div style="margin-bottom: 4px;">
-    <p><strong style="color: var(--primary-color);">Personal Website</strong></p>
-    <p>This terminal-themed personal website built with Next.js.</p>
-    <a href="https://github.com/importTahsinZaman/personal-website" target="_blank" rel="noopener noreferrer">View on GitHub</a>
-  </div>
-  
-  <div>
-    <p><strong style="color: var(--primary-color);">Other Projects</strong></p>
-    <p>More projects can be found on my GitHub profile.</p>
-  </div>
-</div>
-    `);
-  };
-
   const displayThemes = () => {
     let themeButtons = "";
 
     themes.themes.forEach((theme: Theme) => {
-      themeButtons += `<span onclick="document.dispatchEvent(new CustomEvent('changeTheme', { detail: '${
+      themeButtons += `<span class="${
+        styles.themeToggle
+      }" onclick="document.dispatchEvent(new CustomEvent('changeTheme', { detail: '${
         theme.name
       }' }))" style="background-color: ${
         theme.colors["primary-color"]
@@ -491,6 +521,44 @@ export default function Home() {
     );
   };
 
+  // Handle mobile input blur (focus loss)
+  const handleInputBlur = () => {
+    // On mobile, don't immediately refocus as it can be annoying
+    // when trying to scroll or navigate
+    if (!isMobile && inputRef.current) {
+      setTimeout(() => {
+        if (document.activeElement !== inputRef.current && inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 100);
+    }
+  };
+
+  // Handle mobile touch on container to focus input
+  const handleContainerTouch = () => {
+    if (inputRef.current && isMobile) {
+      inputRef.current.focus();
+    }
+  };
+
+  // Add special event handler for mobile command buttons
+  const handleCommandButtonClick = (command: string) => {
+    if (inputRef.current) {
+      inputRef.current.value = command;
+      executeCommand(command);
+    }
+  };
+
+  // Handle focus for mobile
+  const handleInputFocus = () => {
+    if (isMobile) {
+      // Delay scrolling to bottom to account for keyboard opening
+      setTimeout(() => {
+        forceScrollToBottom();
+      }, 300);
+    }
+  };
+
   return (
     <>
       <Head>
@@ -499,10 +567,17 @@ export default function Home() {
           name="description"
           content="Tahsin Zaman's Terminal-themed Personal Website"
         />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0"
+        />
+        <meta name="theme-color" content="#161b22" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         <link rel="icon" href="/logo.png" />
       </Head>
-      <main className={styles.main}>
+      <main
+        className={`${styles.main} ${isKeyboardOpen ? "keyboard-open" : ""}`}
+      >
         <div className={styles.container}>
           <div className={styles.terminalHeader}>
             <div className={styles.terminalControls}>
@@ -519,7 +594,7 @@ export default function Home() {
             <div className={styles.terminalTitle}>guest@tahsinzaman:~</div>
             {isMounted && <ThemeSelector />}
           </div>
-          <div className={styles.container2}>
+          <div className={styles.container2} onClick={handleContainerTouch}>
             <div className={styles.terminal} ref={terminal}></div>
             <div className={styles.inputLine}>
               <div className={styles.prompt}>
@@ -537,14 +612,64 @@ export default function Home() {
                   onKeyUp={handleInputKeyUp}
                   onChange={handleInputChange}
                   onClick={handleInputClick}
+                  onBlur={handleInputBlur}
+                  onFocus={handleInputFocus}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck="false"
+                  autoCapitalize="none"
                   autoFocus
                 />
                 {isMounted && <TerminalCaret />}
               </div>
             </div>
           </div>
+
+          {/* Mobile command buttons - only shown on mobile */}
+          {isMobile && isMounted && (
+            <div
+              style={{
+                position: "fixed",
+                bottom: isKeyboardOpen ? "55%" : "10px",
+                left: "50%",
+                transform: "translateX(-50%)",
+                display: "flex",
+                gap: "8px",
+                zIndex: 100,
+                justifyContent: "center",
+                flexWrap: "wrap",
+                width: "90%",
+                maxWidth: "400px",
+                backgroundColor: "rgba(0,0,0,0.6)",
+                padding: "6px",
+                borderRadius: "16px",
+                transition: "bottom 0.3s ease",
+              }}
+            >
+              {["help", "about", "github", "themes", "clear"].map((cmd) => (
+                <button
+                  key={cmd}
+                  onClick={() => handleCommandButtonClick(cmd)}
+                  style={{
+                    backgroundColor: "var(--primary-color)",
+                    color: "var(--container-bg)",
+                    border: "none",
+                    borderRadius: "12px",
+                    padding: isPortrait ? "8px 12px" : "6px 10px",
+                    fontSize: isPortrait ? "14px" : "12px",
+                    fontWeight: "bold",
+                    opacity: 0.9,
+                    touchAction: "manipulation",
+                    minHeight: isPortrait ? "36px" : "30px",
+                  }}
+                >
+                  {cmd}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-        {isMounted && <AutoFocus inputRef={inputRef} />}
+        {isMounted && <AutoFocus inputRef={inputRef} isMobile={isMobile} />}
       </main>
     </>
   );
