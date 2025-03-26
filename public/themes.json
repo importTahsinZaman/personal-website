@@ -49,15 +49,15 @@
       }
     },
     {
-      "name": "ArcticBlue",
+      "name": "RetroTerminal",
       "colors": {
-        "bg-color": "#0D131A",
-        "container-bg": "#111C26",
-        "font-color": "#D1E5F0",
-        "primary-color": "#57CBFF",
-        "secondary-color": "#B8E4F9",
-        "accent-color": "#FF7582",
-        "terminal-shadow": "0px 0px 30px rgba(87, 203, 255, 0.3)"
+        "bg-color": "#2B2B2B",
+        "container-bg": "#383838",
+        "font-color": "#C0C0C0",
+        "primary-color": "#93C572",
+        "secondary-color": "#BFBFBF",
+        "accent-color": "#FFAA50",
+        "terminal-shadow": "0px 0px 30px rgba(100, 100, 100, 0.3)"
       }
     }
   ],
