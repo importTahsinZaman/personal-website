@@ -462,8 +462,8 @@ export default function Home() {
     if (terminal.current) {
       setIsStreaming(true);
 
-      const aboutContent = `<p>hi, i'm <strong>tahsin zaman</strong> – a passionate developer and tech enthusiast.</p>
-      <p style="margin-top: 4px">i'm currently building the ai workspace for devops over at <a href="https://a37.ai/" target="_blank" rel="noopener noreferrer">a37.ai</a></p>`;
+      const aboutContent = `<p>hi, i'm <strong>tahsin zaman</strong> – a passionate founder and developer</p>
+      <p style="margin-top: 3px">i'm currently building forge, the ai workspace for devops over at <a href="https://a37.ai/" target="_blank" rel="noopener noreferrer">a37.ai</a></p>`;
 
       const div = document.createElement("div");
       div.style.margin = "12px 0 0 0";
