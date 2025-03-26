@@ -1,0 +1,65 @@
+{
+  "themes": [
+    {
+      "name": "NeonNight",
+      "colors": {
+        "bg-color": "#0D1117",
+        "container-bg": "#161B22",
+        "font-color": "#E6EDF3",
+        "primary-color": "#7ee787",
+        "secondary-color": "#f778ba",
+        "accent-color": "#58a6ff",
+        "terminal-shadow": "0px 0px 30px rgba(123, 97, 255, 0.3)"
+      }
+    },
+    {
+      "name": "CyberPunk",
+      "colors": {
+        "bg-color": "#100B20",
+        "container-bg": "#1A1632",
+        "font-color": "#E2E8F0",
+        "primary-color": "#F9CB6B",
+        "secondary-color": "#FF7EDB",
+        "accent-color": "#00F5FF",
+        "terminal-shadow": "0px 0px 30px rgba(255, 126, 219, 0.3)"
+      }
+    },
+    {
+      "name": "HackerGreen",
+      "colors": {
+        "bg-color": "#0F0F0F",
+        "container-bg": "#111111",
+        "font-color": "#CCCCCC",
+        "primary-color": "#00FF9C",
+        "secondary-color": "#00DDFF",
+        "accent-color": "#FF5277",
+        "terminal-shadow": "0px 0px 30px rgba(0, 255, 156, 0.3)"
+      }
+    },
+    {
+      "name": "SynthWave",
+      "colors": {
+        "bg-color": "#262335",
+        "container-bg": "#2F2B49",
+        "font-color": "#F8F8F2",
+        "primary-color": "#F92AAD",
+        "secondary-color": "#36F9F6",
+        "accent-color": "#FFD319",
+        "terminal-shadow": "0px 0px 30px rgba(249, 42, 173, 0.3)"
+      }
+    },
+    {
+      "name": "ArcticBlue",
+      "colors": {
+        "bg-color": "#0D131A",
+        "container-bg": "#111C26",
+        "font-color": "#D1E5F0",
+        "primary-color": "#57CBFF",
+        "secondary-color": "#B8E4F9",
+        "accent-color": "#FF7582",
+        "terminal-shadow": "0px 0px 30px rgba(87, 203, 255, 0.3)"
+      }
+    }
+  ],
+  "activeTheme": "NeonNight"
+}
