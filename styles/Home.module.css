@@ -1,50 +1,342 @@
 .main {
   width: 100vw;
   height: 100vh;
-  padding: 4rem;
-  background-color: #152229;
+  padding: 2rem;
+  background-color: var(--bg-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .container {
   overflow: hidden;
-  height: 100%;
-  padding: 30px;
-  background-color: #111c22;
-  box-shadow: 0px 0px 30px rgba(0, 0, 0, 1);
+  height: 85vh;
+  width: 95vw;
+  max-width: 1000px;
+  padding: 0;
+  background-color: var(--container-bg);
+  box-shadow: var(--terminal-shadow);
+  border-radius: var(--terminal-border-radius);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.terminalHeader {
+  height: var(--terminal-header-height);
+  background-color: rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  padding: 0 15px;
+  border-top-left-radius: var(--terminal-border-radius);
+  border-top-right-radius: var(--terminal-border-radius);
+}
+
+.terminalControls {
+  display: flex;
+  align-items: center;
+}
+
+.terminalButton {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.closeButton {
+  background-color: #ff5f56;
+}
+
+.minimizeButton {
+  background-color: #ffbd2e;
+}
+
+.maximizeButton {
+  background-color: #27c93f;
+}
+
+.terminalTitle {
+  flex: 1;
+  text-align: center;
+  font-size: var(--terminal-title-font-size);
+  color: var(--font-color);
+  opacity: 0.7;
 }
 
 .container2 {
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
-  height: 100%;
+  height: calc(100% - var(--terminal-header-height));
+  padding: 10px 12px 0 12px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scroll-behavior: smooth;
+  position: relative;
+}
+
+.container2::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .terminal {
   width: 100%;
   max-width: 100%;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  line-height: 1.2;
+  padding-right: 4px;
+  flex-grow: 1;
+  overflow-y: auto;
+  padding-bottom: 10px;
+}
+
+.inputLine {
+  display: flex;
+  flex-wrap: nowrap;
+  margin-top: 2px;
+  align-items: center;
+  width: 100%;
+  position: sticky;
+  bottom: 0;
+  background-color: var(--container-bg);
+  padding: 5px 0;
+  z-index: 2;
 }
 
 .newline {
   display: flex;
   flex-wrap: nowrap;
-  margin-top: 5px;
+  margin-top: 1px;
+  margin-bottom: 0;
+  align-items: center;
+  width: 100%;
 }
+
+.prompt {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-right: 0;
+}
+
+.promptUsername {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.promptSeparator {
+  margin: 0 2px;
+}
+
+.promptPath {
+  color: var(--secondary-color);
+  font-weight: 600;
+}
+
 .input {
-  background-color: var(--background-color);
-  border: 0px;
-  min-width: 100%;
-  max-height: 100% !important;
+  background-color: transparent;
+  border: 0;
+  width: 100%;
+  flex-grow: 1;
+  min-width: 50px;
+  height: 20px;
   overflow: hidden;
   resize: none;
   -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  -khtml-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
+  color: var(--font-color);
+  font-family: inherit;
+  font-size: inherit;
+  padding-left: 5px;
+  margin-left: 0;
+
+  /* Traditional terminal caret styling */
+  caret-color: transparent; /* Hide default caret */
+  position: relative;
 }
 
 .input:focus {
   outline: none !important;
+}
+
+/* Custom block caret using animation */
+@keyframes terminal-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.terminalCaret {
+  display: inline-block;
+  width: 7px;
+  height: 16px;
+  background-color: var(--primary-color);
+  position: absolute;
+  animation: terminal-blink 1s step-end infinite;
+  margin-left: 0;
+  border-radius: 0;
+  opacity: 0.8;
+  top: 1px;
+  z-index: 3;
+}
+
+/* Selection styling */
+.input::selection {
+  background-color: rgba(255, 255, 255, 0.3);
+  color: var(--font-color);
+}
+
+.commandResult {
+  padding: 2px 0 0 0;
+  line-height: 1.2;
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  margin-top: 1px;
+}
+
+.preformatted {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.themeSelector {
+  position: absolute;
+  top: 12px;
+  right: 15px;
+  display: flex;
+  z-index: 10;
+}
+
+.profileImage {
+  max-width: 160px;
+  border-radius: 50%;
+  margin: 4px 0;
+  border: 1px solid var(--accent-color);
+}
+
+.socialLinks {
+  display: flex;
+  gap: 6px;
+  margin: 5px 0;
+}
+
+.socialButton {
+  padding: 4px 8px;
+  border-radius: 3px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--accent-color);
+  color: var(--accent-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 13px;
+}
+
+.socialButton:hover {
+  background-color: var(--accent-color);
+  color: var(--container-bg);
+}
+
+.infoTable {
+  margin: 0;
+  border-collapse: collapse;
+  line-height: 1.1;
+}
+
+.infoTable td {
+  padding: 0 12px 0 0;
+  font-size: 14px;
+}
+
+.infoTable td:first-child {
+  color: var(--secondary-color);
+  font-weight: 600;
+}
+
+.asciiArt {
+  color: var(--accent-color);
+  font-size: 10px;
+  max-width: 100%;
+  overflow-x: auto;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+.banner {
+  color: var(--secondary-color);
+  padding: 10px 0;
+}
+
+@media (max-width: 768px) {
+  .main {
+    padding: 0.5rem;
+  }
+
+  .container {
+    width: 100%;
+    height: 95vh;
+    border-radius: 8px;
+  }
+
+  .terminalHeader {
+    padding: 0 10px;
+  }
+
+  .profileImage {
+    max-width: 150px;
+  }
+
+  .terminalTitle {
+    font-size: 12px;
+  }
+
+  .prompt,
+  .input {
+    font-size: 14px;
+  }
+
+  .asciiArt {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .main {
+    padding: 0.25rem;
+  }
+
+  .container {
+    height: 98vh;
+    border-radius: 6px;
+  }
+
+  .container2 {
+    padding: 10px;
+  }
+
+  .terminalControls {
+    display: none;
+  }
+
+  .terminalTitle {
+    text-align: left;
+  }
+
+  .prompt,
+  .input {
+    font-size: 12px;
+  }
 }
