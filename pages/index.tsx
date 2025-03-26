@@ -579,7 +579,7 @@ export default function Home() {
       streamAsciiArt(
         asciiArtContainer,
         asciiArt,
-        6, // Process 6 characters per animation frame (70% slower than before)
+        3, // Process 3 characters per animation frame (50% slower than before)
         () => {
           // Stream the text below the ASCII art once ASCII art streaming is complete
           const textContainer = document.createElement("div");
