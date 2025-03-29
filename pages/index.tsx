@@ -364,6 +364,11 @@ export default function Home() {
         );
         addOutput("Opening GitHub profile...");
         break;
+      case "twitter":
+      case "x":
+        window.open("https://x.com/tahs1nz", "_blank", "noopener,noreferrer");
+        addOutput("Opening Twitter/X profile...");
+        break;
       case "email":
         displayEmail();
         break;
@@ -418,6 +423,7 @@ export default function Home() {
       <tr><td>github</td><td>Open my GitHub profile</td></tr>
       <tr><td>help</td><td>Show this help message</td></tr>
       <tr><td>linkedin</td><td>Open my LinkedIn profile</td></tr>
+      <tr><td>twitter</td><td>Open my Twitter/X profile</td></tr>
       <tr><td>themes</td><td>List available color themes</td></tr>
       <tr><td>theme [name]</td><td>Switch to a different color theme</td></tr>
       </table>`;
@@ -583,11 +589,15 @@ export default function Home() {
         () => {
           // Stream the text below the ASCII art once ASCII art streaming is complete
           const textContainer = document.createElement("div");
-          textContainer.style.margin = "8px 0 0 0";
+          textContainer.style.margin = "3px 0 0 0";
+          textContainer.style.lineHeight = "0.9";
           bannerContainer.appendChild(textContainer);
 
-          const bannerText = `<p style="margin: 0 0 4px 0; color: var(--accent-color);">co-founder and cto at <a href="https://a37.ai/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-color);">a37.ai</a>; mit dropout</p>
-        <p style="margin: 0;">Type <span style="color: var(--primary-color)">help</span> to see available commands</p>`;
+          const bannerText = `<div style="margin: 0; padding: 0; line-height: 0.2;">
+            <p style="margin: 0; padding: 0; color: var(--accent-color);">co-founder and cto at <a href="https://a37.ai/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-color);">a37.ai</a>; mit dropout</p>
+            <p style="margin: 0; padding: 0; color: var(--accent-color);"><a href="https://x.com/tahs1nz" target="_blank" rel="noopener noreferrer" style="color: var(--accent-color);">@tahs1nz</a></p>
+            <p style="margin: 10px 0 0 0; padding: 0;">Type <span style="color: var(--primary-color)">help</span> to see available commands</p>
+          </div>`;
 
           streamTextToElement(textContainer, bannerText, 8, () => {
             setIsStreaming(false);
@@ -898,26 +908,28 @@ export default function Home() {
                 transition: "bottom 0.3s ease",
               }}
             >
-              {["help", "about", "github", "themes", "clear"].map((cmd) => (
-                <button
-                  key={cmd}
-                  onClick={() => handleCommandButtonClick(cmd)}
-                  style={{
-                    backgroundColor: "var(--primary-color)",
-                    color: "var(--container-bg)",
-                    border: "none",
-                    borderRadius: "12px",
-                    padding: isPortrait ? "8px 12px" : "6px 10px",
-                    fontSize: isPortrait ? "14px" : "12px",
-                    fontWeight: "bold",
-                    opacity: 0.9,
-                    touchAction: "manipulation",
-                    minHeight: isPortrait ? "36px" : "30px",
-                  }}
-                >
-                  {cmd}
-                </button>
-              ))}
+              {["help", "about", "github", "twitter", "themes", "clear"].map(
+                (cmd) => (
+                  <button
+                    key={cmd}
+                    onClick={() => handleCommandButtonClick(cmd)}
+                    style={{
+                      backgroundColor: "var(--primary-color)",
+                      color: "var(--container-bg)",
+                      border: "none",
+                      borderRadius: "12px",
+                      padding: isPortrait ? "8px 12px" : "6px 10px",
+                      fontSize: isPortrait ? "14px" : "12px",
+                      fontWeight: "bold",
+                      opacity: 0.9,
+                      touchAction: "manipulation",
+                      minHeight: isPortrait ? "36px" : "30px",
+                    }}
+                  >
+                    {cmd}
+                  </button>
+                )
+              )}
             </div>
           )}
         </div>
